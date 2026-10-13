@@ -1,0 +1,33 @@
+# Terraform: кэш провайдеров и локальное состояние
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# зеркало провайдеров, если реестр HashiCorp недоступен
+.terraform-mirror/
+
+# секреты и локальные значения
+.env
+*.pem
+*.key
+**/terraform.tfvars
+**/backend.hcl
+
+# артефакты локального прогона задания 2
+build/
+
+# ОС и IDE
+.DS_Store
+.idea/
+.vscode/
