@@ -7,6 +7,10 @@ tfplan
 crash.log
 crash.*.log
 
+# lock-файл не коммитим: он фиксирует только платформу локального init,
+# а CI ставит Terraform на linux и сгенерирует свой
+**/.terraform.lock.hcl
+
 override.tf
 override.tf.json
 *_override.tf
@@ -23,9 +27,6 @@ terraform.rc
 *.key
 **/terraform.tfvars
 **/backend.hcl
-
-# артефакты локального прогона задания 2
-build/
 
 # ОС и IDE
 .DS_Store

@@ -1,0 +1,21 @@
+# Пример значений переменных.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#   terraform apply -var-file=terraform.tfvars
+#
+# terraform.tfvars в репозиторий не попадает (см. .gitignore).
+
+environment = "dev"
+project     = "future20"
+
+cloud_id  = "b1g..." # свой
+folder_id = "b1g..." # свой
+zone      = "ru-central1-a"
+subnet_id = "e9b..." # свой
+
+ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@host"
+
+cores         = 2
+ram_gb        = 4
+boot_disk_gb  = 20
+data_disk_gb  = 20
