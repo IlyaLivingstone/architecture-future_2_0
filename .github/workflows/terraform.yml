@@ -43,12 +43,9 @@ jobs:
     name: plan (${{ github.event.inputs.environment }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Окружение GitHub хранит свои секреты и переменные и, при необходимости,
-    # правило «требуется подтверждение» перед запуском job.
-    environment: ${{ github.event.inputs.environment }}
     env:
       # провайдер yandex авторизуется ключом сервисного аккаунта из файла
-      YC_SERVICE_ACCOUNT_KEY_FILE: ${{ runner.temp }}/yc-key.json
+      YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
       # доступ к Object Storage для файла состояния
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_KEY }}
@@ -121,7 +118,7 @@ jobs:
     timeout-minutes: 20
     environment: ${{ github.event.inputs.environment }}
     env:
-      YC_SERVICE_ACCOUNT_KEY_FILE: ${{ runner.temp }}/yc-key.json
+      YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_KEY }}
       TF_VAR_cloud_id: ${{ vars.YC_CLOUD_ID }}
