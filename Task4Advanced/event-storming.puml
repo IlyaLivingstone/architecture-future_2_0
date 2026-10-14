@@ -1,0 +1,100 @@
+@startuml event-storming
+left to right direction
+skinparam ArrowColor #555555
+skinparam rectangle {
+  FontSize 13
+  BorderColor #666666
+}
+
+title Event Storming «Будущее 2.0» — события доменов и подписчики
+
+legend right
+  |= Цвет |= Что означает |
+  |<#FFE08A>| Команда (действие пользователя или системы) |
+  |<#F2A65A>| Доменное событие |
+  |<#D9C2F0>| Политика (реакция на событие) |
+  |<#A7C7E7>| Read model или отчёт |
+  |<#C9E4CA>| Внешний партнёр |
+endlegend
+
+actor "Оператор, врач" as user
+
+package "Клиники" {
+  rectangle "Зарегистрировать\nпациента" as cmd_reg #FFE08A
+  rectangle "Открыть визит" as cmd_open #FFE08A
+  rectangle "Оказать услугу" as cmd_service #FFE08A
+  rectangle "Завершить визит" as cmd_close #FFE08A
+  rectangle "ПациентЗарегистрирован" as ev_reg #F2A65A
+  rectangle "ВизитОткрыт" as ev_open #F2A65A
+  rectangle "УслугаОказана" as ev_service #F2A65A
+  rectangle "ВизитЗавершён" as ev_close #F2A65A
+}
+
+package "Медицинские записи" {
+  rectangle "МедЗаписьСоздана" as ev_record #F2A65A
+  rectangle "МедЗаписьЗакрыта" as ev_record_closed #F2A65A
+}
+
+package "ИИ-диагностика" {
+  rectangle "ИИАнализЗапрошен" as ev_ai_req #F2A65A
+  rectangle "ИИАнализЗавершён" as ev_ai_done #F2A65A
+}
+
+package "ML-платформа" {
+  rectangle "МодельЗарегистрирована" as ev_model #F2A65A
+}
+
+package "Финтех" {
+  rectangle "СчётВыставлен" as ev_invoice #F2A65A
+  rectangle "КредитныйДоговорСоздан" as ev_loan #F2A65A
+  rectangle "ПлатёжПолучен" as ev_payment #F2A65A
+}
+
+package "Политики" {
+  rectangle "После ВизитОткрыт\nзавести медзапись" as pol_record #D9C2F0
+  rectangle "После ИИАнализЗавершён\nзакрыть запись" as pol_close #D9C2F0
+  rectangle "После ВизитЗавершён\nвыставить счёт" as pol_invoice #D9C2F0
+}
+
+package "Головной офис" {
+  rectangle "СотрудникПринят" as ev_hire #F2A65A
+  rectangle "ЗакупкаОформлена" as ev_purchase #F2A65A
+  rectangle "ОтчётСформирован" as ev_report #A7C7E7
+}
+
+package "Партнёры" {
+  rectangle "ДанныеОборудованияПолучены" as ev_device #C9E4CA
+  rectangle "ПартнёрскийЗаказОтправлен" as ev_partner_order #C9E4CA
+}
+
+user --> cmd_reg
+cmd_reg --> ev_reg
+user --> cmd_open
+cmd_open --> ev_open
+user --> cmd_service
+cmd_service --> ev_service
+user --> cmd_close
+cmd_close --> ev_close
+
+ev_open --> pol_record : подписка
+pol_record --> ev_record : завести запись
+ev_record --> ev_ai_req : команда — запросить анализ
+ev_ai_req --> ev_ai_done
+ev_ai_done --> pol_close : подписка
+pol_close --> ev_record_closed : закрыть запись
+ev_model --> ev_ai_req : подписка — доступные модели
+ev_device --> ev_ai_req : подписка — данные для анализа
+
+ev_close --> pol_invoice : подписка
+pol_invoice --> ev_invoice : выставить счёт
+ev_invoice --> ev_loan : подписка — кредит на оплату
+ev_loan --> ev_payment : подписка — график платежей
+
+ev_close --> ev_report : подписка — факт визита
+ev_record_closed --> ev_report : подписка — факт исследования
+ev_payment --> ev_report : подписка — выручка
+ev_loan --> ev_report : подписка — портфель
+ev_hire --> ev_record : подписка — права врача
+ev_purchase --> ev_report : подписка — расходы
+
+@enduml
