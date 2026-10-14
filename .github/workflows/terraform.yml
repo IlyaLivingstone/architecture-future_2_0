@@ -1,0 +1,171 @@
+name: terraform-task2
+
+# Задание 2: состояние в Yandex Object Storage, применение через пайплайн.
+# Запуск только вручную; apply выполняется при apply = true и после
+# подтверждения на окружении с Required reviewers.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Окружение, в котором применяется конфигурация"
+        required: true
+        type: choice
+        options:
+          - dev
+          - stage
+          - prod
+      apply:
+        description: "Выполнить terraform apply после успешного plan"
+        required: true
+        type: boolean
+        default: false
+
+# Токен репозитория пайплайну не нужен: только чтение кода.
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_WORKING_DIR: Task2Advanced
+  AWS_REGION: ru-central1
+  STATE_BUCKET: future20-terraform-state-ilyalivingstone
+
+# Два одновременных прогона в одном окружении подерутся за state,
+# поэтому второй ставим в очередь, а не отменяем.
+concurrency:
+  group: terraform-task2-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # провайдер yandex авторизуется ключом сервисного аккаунта из файла
+      YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+      # доступ к Object Storage для файла состояния
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_KEY }}
+      # параметры облака для провайдера
+      TF_VAR_cloud_id: ${{ vars.YC_CLOUD_ID }}
+      TF_VAR_folder_id: ${{ vars.YC_FOLDER_ID }}
+      TF_VAR_subnet_id: ${{ vars.YC_SUBNET_ID }}
+      TF_VAR_ssh_key: ${{ vars.SSH_PUBLIC_KEY }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: Task2Advanced
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+
+      - name: Write service account key
+        run: |
+          mkdir -p "$(dirname "$YC_SERVICE_ACCOUNT_KEY_FILE")"
+          echo '${{ secrets.YC_SA_KEY }}' > "$YC_SERVICE_ACCOUNT_KEY_FILE"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="key=future20/task2/${{ github.event.inputs.environment }}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="endpoint=https://storage.yandexcloud.net" \
+            -backend-config="force_path_style=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: |
+          terraform plan \
+            -input=false \
+            -lock-timeout=5m \
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -out=tfplan
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v7
+        with:
+          name: tfplan-${{ github.event.inputs.environment }}
+          path: Task2Advanced/tfplan
+          retention-days: 1
+
+  apply:
+    name: apply (${{ github.event.inputs.environment }})
+    needs: plan
+    if: ${{ github.event.inputs.apply == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # apply выполняется только при явном флаге apply=true — это подтверждение.
+    env:
+      YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_KEY }}
+      TF_VAR_cloud_id: ${{ vars.YC_CLOUD_ID }}
+      TF_VAR_folder_id: ${{ vars.YC_FOLDER_ID }}
+      TF_VAR_subnet_id: ${{ vars.YC_SUBNET_ID }}
+      TF_VAR_ssh_key: ${{ vars.SSH_PUBLIC_KEY }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: Task2Advanced
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+
+      - name: Write service account key
+        run: |
+          mkdir -p "$(dirname "$YC_SERVICE_ACCOUNT_KEY_FILE")"
+          echo '${{ secrets.YC_SA_KEY }}' > "$YC_SERVICE_ACCOUNT_KEY_FILE"
+
+      - name: Download plan
+        uses: actions/download-artifact@v8
+        with:
+          name: tfplan-${{ github.event.inputs.environment }}
+          path: Task2Advanced
+
+      - name: Terraform init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="key=future20/task2/${{ github.event.inputs.environment }}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="endpoint=https://storage.yandexcloud.net" \
+            -backend-config="force_path_style=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="use_lockfile=true"
+
+      # применяем ровно тот план, который проверили на шаге plan
+      - name: Terraform apply
+        run: terraform apply -input=false -lock-timeout=5m tfplan

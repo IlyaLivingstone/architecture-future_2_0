@@ -1,0 +1,24 @@
+# Параметры backend для Yandex Object Storage.
+#
+#   export AWS_ACCESS_KEY_ID="<key_id статического ключа сервисного аккаунта>"
+#   export AWS_SECRET_ACCESS_KEY="<secret статического ключа>"
+#   terraform init -backend-config=backend.hcl
+#
+# Бакет создаётся заранее в Object Storage. backend.hcl в репозиторий не
+# попадает (см. .gitignore), ключи доступа приходят из переменных окружения.
+
+bucket = "future20-terraform-state-ilyalivingstone"
+key    = "future20/task2/dev/terraform.tfstate"
+region = "ru-central1"
+
+endpoint         = "https://storage.yandexcloud.net"
+force_path_style = true
+
+# Object Storage — не AWS, поэтому отключаем проверки AWS-специфичных сервисов.
+skip_credentials_validation = true
+skip_region_validation      = true
+skip_requesting_account_id  = true
+skip_metadata_api_check     = true
+
+# Блокировка состояния файлом .tflock рядом со state (Terraform >= 1.10).
+use_lockfile = true

@@ -1,0 +1,55 @@
+@startuml bounded-contexts
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.5.0/C4_Context.puml
+
+title Карта ограниченных контекстов «Будущее 2.0»
+
+Person(operator, "Оператор клиники", "Регистрирует пациентов, ведёт визиты")
+Person(doctor, "Врач", "Работает с медзаписями и результатами ИИ")
+Person(analyst, "Аналитик домена", "Собирает отчёты в портале самообслуживания")
+
+System_Ext(partners, "Партнёры: фарма и производитель медоборудования", "Внешний контур, обмен по версионируемым контрактам")
+System_Ext(legacy, "Легаси: DWH и Camel", "Доступ только через антикоррупционный слой, вывод к 36 месяцу")
+
+System_Boundary(clinics, "Клиники") {
+    System(patients, "Пациенты и визиты", "Регистрация, согласия, запись, визиты, оказанные услуги")
+    System(records, "Медицинские записи", "ЭМК, истории болезни и результаты исследований. В аналитику не выгружаются")
+}
+
+System_Boundary(ai, "ИИ-сервисы") {
+    System(ai_diag, "ИИ-диагностика", "Инференс моделей и класс результата")
+    System(ml_platform, "ML-платформа", "Обучение, признаки, реестр моделей")
+}
+
+System_Boundary(fintech, "Финтех") {
+    System(billing, "Платежи и счета", "Счета, платежи, эквайринг")
+    System(lending, "Кредитование", "Заявки, договоры, график платежей")
+}
+
+System_Boundary(hq, "Головной офис") {
+    System(staff, "Персонал", "Сотрудники, роли, назначения")
+    System(supply, "Снабжение", "Закупки, склад, поставщики")
+    System(reporting, "Финотчётность", "Сводная отчётность по событиям доменов")
+}
+
+Rel(operator, patients, "Регистрирует пациента и ведёт визит", "HTTPS")
+Rel(doctor, records, "Смотрит медзаписи и результаты", "HTTPS")
+Rel(analyst, reporting, "Строит отчёты и срезы", "HTTPS")
+
+Rel(patients, records, "ВизитОткрыт", "События, Published Language")
+Rel(patients, billing, "ВизитЗавершён, УслугаОказана", "События, Published Language")
+Rel(records, ai_diag, "Запрос ИИ-анализа", "Команда, Customer-Supplier")
+Rel(ai_diag, records, "ИИАнализЗавершён", "События, Published Language")
+Rel(ml_platform, ai_diag, "Реестр моделей и версии", "Published Language")
+Rel(billing, lending, "СчётВыставлен", "События, Published Language")
+Rel(lending, billing, "КредитныйДоговорСоздан", "События, Published Language")
+
+Rel(records, reporting, "Факты визитов и исследований", "События, Published Language")
+Rel(billing, reporting, "Платежи и счета", "События, Published Language")
+Rel(lending, reporting, "Договоры и поступления", "События, Published Language")
+Rel(staff, patients, "Справочник сотрудников и роли", "События, Published Language")
+Rel(supply, reporting, "Закупки и склад", "События, Published Language")
+
+Rel(partners, patients, "Партнёрские заявки и слоты", "Контракты, Partnership")
+Rel(legacy, records, "Исторические данные и вызовы", "Anti-Corruption Layer")
+
+@enduml

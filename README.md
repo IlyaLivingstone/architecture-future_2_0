@@ -25,9 +25,9 @@ terraform -chdir=envs/dev apply -var-file=dev.tfvars
 
 ```bash
 cd Task2Advanced
-docker compose up -d
-export AWS_ACCESS_KEY_ID=minioadmin
-export AWS_SECRET_ACCESS_KEY=minioadmin
+export YC_SERVICE_ACCOUNT_KEY_FILE="/путь/к/key.json"   # или YC_TOKEN
+export AWS_ACCESS_KEY_ID="<key_id статического ключа>"
+export AWS_SECRET_ACCESS_KEY="<secret статического ключа>"
 cp backend.hcl.example backend.hcl
 terraform init -backend-config=backend.hcl
 terraform apply

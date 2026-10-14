@@ -1,0 +1,44 @@
+@startuml C4_Component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.5.0/C4_Component.puml
+
+title Диаграмма компонентов — платформа данных и портал самообслуживания
+
+Container(bus, "Шина событий", "Kafka", "Источник событий доменов")
+Container(schema, "Каталог схем", "Schema Registry", "Проверка совместимости схем")
+
+Container_Boundary(platform, "Платформа данных") {
+    Component(cdc, "CDC-коннекторы", "Debezium", "Читают изменения из легаси-DWH")
+    Component(intake, "Приём и валидация", "Go", "Проверяет контракт и схему события")
+    Component(scope_filter, "Фильтр медданных", "Go", "Отсекает медкарты, истории болезни и результаты исследований")
+    Component(errors, "Очередь ошибок", "Kafka", "Невалидные сообщения")
+    ComponentDb(lakehouse, "Хранилище Lakehouse", "Iceberg, Nessie", "Обезличенные историчные данные")
+    Component(semantic, "Семантический слой", "dbt", "Определения метрик и измерений")
+    Component(query_api, "Query API", "Dremio", "Выполняет запросы с лимитами и таймаутами")
+    Component(catalog, "Каталог", "DataHub", "Метаданные и происхождение данных")
+    Component(airflow, "Оркестратор пакетной загрузки", "Airflow", "Историческая загрузка из DWH")
+}
+
+Container_Boundary(portal, "Портал самообслуживания") {
+    Component(report_ui, "Конструктор отчётов", "React", "Срезы и фильтры без SQL")
+    Component(portal_backend, "Серверная часть портала", "Go", "Сборка ответов и кеширование")
+    Component(access, "Проверка доступа", "Go, OPA", "Решает, что доступно пользователю")
+    Component(catalog_search, "Поиск по каталогу", "React", "Поиск дата-продуктов и их владельцев")
+}
+
+Rel(bus, intake, "Поток событий", "Kafka")
+Rel(cdc, intake, "Изменения из DWH", "Debezium")
+Rel(schema, intake, "Проверка совместимости", "REST")
+Rel(intake, errors, "Невалидные сообщения", "Kafka")
+Rel(intake, scope_filter, "Валидное событие", "Внутренний вызов")
+Rel(scope_filter, lakehouse, "Обезличенные данные", "Iceberg")
+Rel(intake, catalog, "Происхождение данных", "REST")
+Rel(airflow, lakehouse, "Пакетная загрузка", "Spark")
+Rel(lakehouse, semantic, "Данные для метрик", "SQL")
+Rel(semantic, query_api, "Определения метрик", "SQL")
+Rel(query_api, report_ui, "Результат запроса", "REST")
+Rel(report_ui, portal_backend, "Запрос пользователя", "REST")
+Rel(portal_backend, access, "Проверка прав", "Внутренний вызов")
+Rel(catalog_search, report_ui, "Найденные дата-продукты", "REST")
+Rel(portal_backend, catalog, "Описания дата-продуктов", "REST")
+
+@enduml
