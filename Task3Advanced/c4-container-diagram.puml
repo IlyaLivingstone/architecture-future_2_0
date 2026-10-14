@@ -1,0 +1,75 @@
+@startuml C4_Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.5.0/C4_Container.puml
+
+title Диаграмма контейнеров «Будущее 2.0» — целевая архитектура данных
+
+Person(doctor, "Врач", "Работает через веб-АРМ")
+Person(analyst, "Аналитик и бизнес-пользователь", "Работает в портале самообслуживания")
+
+System_Ext(partners, "Фарма и производитель медоборудования", "Партнёры по контрактам событий")
+System_Ext(new_sources, "Новые источники данных", "Медоборудование, IoT, региональные фиды")
+
+System_Boundary(future20, "Будущее 2.0") {
+
+    Container_Boundary(domains, "Операционные домены") {
+        Container(clinics, "Клинический сервис", "Go/Java, PostgreSQL", "Визиты, услуги, медкарты. Медданные остаются здесь и в аналитику не выгружаются")
+        Container(fintech, "Финансовый сервис", "Go/Java, PostgreSQL", "Счета, платежи, кредиты")
+        Container(ai, "ИИ-сервис", "Python", "Инференс моделей диагностики")
+        Container(staff, "Головной офис", "Go/Java, PostgreSQL", "Персонал, снабжение, финотчётность")
+    }
+
+    Container(api_gw, "API-шлюз", "Envoy, Go", "Точка входа, маршрутизация, проверка токена")
+
+    Container_Boundary(integration, "Интеграция и события") {
+        Container(bus, "Шина событий", "Kafka", "Единственный способ междоменного обмена")
+        Container(schema, "Каталог схем", "Schema Registry", "Версии схем события и проверка совместимости")
+        Container(dlq, "DLQ", "Kafka", "Невалидные сообщения и повторная обработка")
+    }
+
+    Container_Boundary(analytics, "Аналитическая платформа") {
+        Container(ingest, "Приём данных", "Debezium, Kafka Connect", "CDC из легаси и поток событий из шины")
+        ContainerDb(lake, "Lakehouse", "Object Storage, Iceberg", "Обезличенные историчные данные")
+        Container(semantic, "Семантический слой", "dbt", "Единые определения метрик")
+        Container(catalog, "Каталог данных", "DataHub", "Метаданные и происхождение данных")
+        Container(portal, "Портал самообслуживания", "React, Go", "Конструктор отчётов и срезов")
+        Container(airflow, "Оркестратор", "Airflow", "Пакетная загрузка исторических данных")
+    }
+
+    Container(iam, "CIAM и RBAC", "Keycloak", "Аутентификация и права доступа")
+}
+
+System_Boundary(bridges, "Мосты совместимости — до 36 месяца") {
+    ContainerDb(dwh, "DWH SQL Server 2008", "legacy, read-only", "Источник исторических данных")
+    Container(camel, "Шина Camel", "legacy", "Старые интеграции через адаптеры")
+}
+
+Rel(doctor, api_gw, "Работает с визитами и услугами", "HTTPS")
+Rel(analyst, portal, "Собирает отчёты", "HTTPS")
+Rel(partners, bus, "Публикует события по контракту", "Контракты событий")
+Rel(new_sources, ingest, "Сырые данные", "Kafka Connect / API")
+
+Rel(api_gw, clinics, "Запросы клинического домена", "REST")
+Rel(api_gw, fintech, "Запросы финансового домена", "REST")
+Rel(api_gw, iam, "Проверка токена", "OIDC")
+
+Rel(clinics, bus, "События визитов и услуг", "Kafka")
+Rel(fintech, bus, "События расчётов", "Kafka")
+Rel(ai, bus, "Результаты анализа", "Kafka")
+Rel(staff, bus, "События снабжения", "Kafka")
+
+Rel(bus, schema, "Регистрация схемы", "Kafka")
+Rel(bus, dlq, "Невалидные сообщения", "Kafka")
+
+Rel(camel, bus, "Адаптированные вызовы легаси", "Kafka")
+Rel(dwh, ingest, "Изменения по CDC", "Debezium")
+Rel(bus, ingest, "Поток событий", "Kafka")
+
+Rel(ingest, lake, "После фильтра медданных", "Iceberg")
+Rel(airflow, lake, "Пакетная загрузка", "Spark")
+Rel(lake, semantic, "Данные витрин", "SQL")
+Rel(semantic, portal, "Метрики и измерения", "REST")
+Rel(ingest, catalog, "Происхождение данных", "REST")
+Rel(catalog, portal, "Поиск по дата-продуктам", "REST")
+Rel(portal, iam, "Проверка доступа", "OIDC")
+
+@enduml
