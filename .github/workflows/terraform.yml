@@ -116,7 +116,7 @@ jobs:
     if: ${{ github.event.inputs.apply == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ github.event.inputs.environment }}
+    # apply выполняется только при явном флаге apply=true — это подтверждение.
     env:
       YC_SERVICE_ACCOUNT_KEY_FILE: yc-key.json
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY }}
